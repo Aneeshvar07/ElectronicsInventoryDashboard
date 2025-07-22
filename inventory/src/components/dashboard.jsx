@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { InventoryContext } from './inventoryContext';
-import { Plus, Search, Eye, EyeOff, Menu as MenuIcon } from 'lucide-react';
+import { Plus, Search, Eye, EyeOff, Menu as MenuIcon, MoreVertical } from 'lucide-react';
 import AddPartForm from './addPartForm';
 import EditPartForm from './editPartForm';
 import AddCategoryForm from './addCategoryForm';
@@ -78,6 +78,9 @@ const Dashboard = ({ type }) => {
   const [selectedParts, setSelectedParts] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+  const [sortColumn, setSortColumn] = useState(null);
+  const [sortDirection, setSortDirection] = useState('asc');
+  const [actionMenuOpen, setActionMenuOpen] = useState(null); // row id or null
 
   useEffect(() => {
     if (selectedCategoryId !== null) {
@@ -181,9 +184,50 @@ const Dashboard = ({ type }) => {
     return matches && matchesCategory(part.categoryId);
   });
 
-  // Paginate filtered parts
-  const totalPages = Math.ceil(filteredParts.length / itemsPerPage);
-  const paginatedParts = filteredParts.slice(
+  function parseValue(val) {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    const lower = val.toLowerCase().replace(/,/g, '').trim();
+    // Ohms
+    if (lower.endsWith('m ohm')) return parseFloat(lower) * 1e6;
+    if (lower.endsWith('k ohm')) return parseFloat(lower) * 1e3;
+    if (lower.endsWith('ohm')) return parseFloat(lower);
+    // Farads
+    if (lower.endsWith('pf')) return parseFloat(lower) * 1e-12;
+    if (lower.endsWith('nf')) return parseFloat(lower) * 1e-9;
+    if (lower.endsWith('uf')) return parseFloat(lower) * 1e-6;
+    if (lower.endsWith('mf')) return parseFloat(lower) * 1e-3;
+    if (lower.endsWith('f')) return parseFloat(lower);
+    // Default: try to parse as float
+    return parseFloat(lower) || 0;
+  }
+
+  const sortableColumns = ['name', 'partNumber', 'package', 'inStock', 'minimumStock', 'location'];
+
+  // Sorting logic
+  const sortedParts = React.useMemo(() => {
+    if (!sortColumn) return filteredParts;
+    const sorted = [...filteredParts].sort((a, b) => {
+      let aVal = a[sortColumn];
+      let bVal = b[sortColumn];
+      if (["inStock", "minimumStock"].includes(sortColumn)) {
+        aVal = parseValue(aVal);
+        bVal = parseValue(bVal);
+      } else {
+        aVal = aVal ? aVal.toString().toLowerCase() : '';
+        bVal = bVal ? bVal.toString().toLowerCase() : '';
+      }
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredParts, sortColumn, sortDirection]);
+
+  const totalPages = Math.ceil(sortedParts.length / itemsPerPage);
+
+  // Pagination logic
+  const paginatedParts = sortedParts.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -393,13 +437,49 @@ const Dashboard = ({ type }) => {
                         />
                       </th>
                       {visibleColumns.name && (
-                        <th className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947]">Name</th>
+                        <th
+                          className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947] cursor-pointer select-none"
+                          onClick={() => {
+                            if (sortColumn === 'name') {
+                              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                            } else {
+                              setSortColumn('name');
+                              setSortDirection('asc');
+                            }
+                          }}
+                        >
+                          Name{sortColumn === 'name' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                        </th>
                       )}
                       {visibleColumns.partNumber && (
-                        <th className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947]">Part Number</th>
+                        <th
+                          className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947] cursor-pointer select-none"
+                          onClick={() => {
+                            if (sortColumn === 'partNumber') {
+                              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                            } else {
+                              setSortColumn('partNumber');
+                              setSortDirection('asc');
+                            }
+                          }}
+                        >
+                          Part Number{sortColumn === 'partNumber' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                        </th>
                       )}
                       {visibleColumns.package && (
-                        <th className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947]">Package</th>
+                        <th
+                          className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947] cursor-pointer select-none"
+                          onClick={() => {
+                            if (sortColumn === 'package') {
+                              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                            } else {
+                              setSortColumn('package');
+                              setSortDirection('asc');
+                            }
+                          }}
+                        >
+                          Package{sortColumn === 'package' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                        </th>
                       )}
                       {visibleColumns.category && (
                         <th className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947]">Category</th>
@@ -408,13 +488,49 @@ const Dashboard = ({ type }) => {
                         <th className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947]">Description</th>
                       )}
                       {visibleColumns.inStock && (
-                        <th className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947]">In Stock</th>
+                        <th
+                          className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947] cursor-pointer select-none"
+                          onClick={() => {
+                            if (sortColumn === 'inStock') {
+                              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                            } else {
+                              setSortColumn('inStock');
+                              setSortDirection('asc');
+                            }
+                          }}
+                        >
+                          In Stock{sortColumn === 'inStock' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                        </th>
                       )}
                       {visibleColumns.minimumStock && (
-                        <th className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947]">Min Stock</th>
+                        <th
+                          className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947] cursor-pointer select-none"
+                          onClick={() => {
+                            if (sortColumn === 'minimumStock') {
+                              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                            } else {
+                              setSortColumn('minimumStock');
+                              setSortDirection('asc');
+                            }
+                          }}
+                        >
+                          Min Stock{sortColumn === 'minimumStock' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                        </th>
                       )}
                       {visibleColumns.location && (
-                        <th className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947]">Location</th>
+                        <th
+                          className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947] cursor-pointer select-none"
+                          onClick={() => {
+                            if (sortColumn === 'location') {
+                              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                            } else {
+                              setSortColumn('location');
+                              setSortDirection('asc');
+                            }
+                          }}
+                        >
+                          Location{sortColumn === 'location' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                        </th>
                       )}
                       {visibleColumns.comments && (
                         <th className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947]">Comments</th>
@@ -467,26 +583,41 @@ const Dashboard = ({ type }) => {
                         {visibleColumns.comments && (
                           <td className="px-2 md:px-4 py-2 text-xs md:text-sm text-[#4A4947]">{part.comments}</td>
                         )}
-                        <td className="px-2 md:px-4 py-2 text-xs md:text-sm text-[#4A4947] space-x-2 md:space-x-4">
-                        <button
-                          onClick={() => handleEditPart(part)}
-                            className="text-[#B17457] hover:text-[#4A4947] underline font-semibold"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (window.confirm('Are you sure you want to delete this part?')) {
-                              deletePart(part.id);
-                            }
-                          }}
-                            className="text-[#B17457] hover:text-[#4A4947] underline font-semibold"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="px-2 md:px-4 py-2 text-xs md:text-sm text-[#4A4947] space-x-2 md:space-x-4 relative">
+                          <button
+                            onClick={() => setActionMenuOpen(actionMenuOpen === part.id ? null : part.id)}
+                            className="p-1 rounded hover:bg-[#E5E5E5]"
+                            aria-label="More actions"
+                          >
+                            <MoreVertical size={18} />
+                          </button>
+                          {actionMenuOpen === part.id && (
+                            <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded shadow-lg z-20">
+                              <button
+                                className="block w-full text-left px-4 py-2 text-sm hover:bg-[#F5EDE6]"
+                                onClick={() => {
+                                  setActionMenuOpen(null);
+                                  handleEditPart(part);
+                                }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="block w-full text-left px-4 py-2 text-sm hover:bg-[#F5EDE6] text-red-600"
+                                onClick={() => {
+                                  setActionMenuOpen(null);
+                                  if (window.confirm('Are you sure you want to delete this part?')) {
+                                    deletePart(part.id);
+                                  }
+                                }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
                   {filteredParts.length === 0 && (
                     <tr>
                         <td colSpan="8" className="px-2 md:px-4 py-2 text-center text-[#D8D2C2]">

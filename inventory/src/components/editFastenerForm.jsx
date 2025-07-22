@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './modal';
+import FastenersCategoryTree from './FastenersCategoryTree';
+import CategorySearchSelect from './CategorySearchSelect';
+import { Plus, Minus } from 'lucide-react';
 
 const EditFastenerForm = ({ isOpen, onClose, fastener, categories = [], onUpdated }) => {
   const [form, setForm] = useState(fastener || {});
@@ -103,17 +106,13 @@ const EditFastenerForm = ({ isOpen, onClose, fastener, categories = [], onUpdate
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Category *</label>
-            <select
-              value={form.categoryId || ''}
-              onChange={e => setForm({ ...form, categoryId: e.target.value })}
-              className="w-full p-3 border border-gray-300 rounded-lg"
-              required
-            >
-              <option value="">Select category</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
+            <CategorySearchSelect
+              selectedId={form.categoryId}
+              onSelect={id => setForm({ ...form, categoryId: id })}
+              categories={categories}
+              isFastener={true}
+            />
+            {!form.categoryId && <div className="text-xs text-red-500 mt-1">Please select a category.</div>}
           </div>
         </div>
         <div>
@@ -128,14 +127,30 @@ const EditFastenerForm = ({ isOpen, onClose, fastener, categories = [], onUpdate
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">In Stock</label>
-            <input
-              type="number"
-              value={form.inStock || ''}
-              onChange={e => setForm({ ...form, inStock: e.target.value })}
-              className="w-full p-3 border border-gray-300 rounded-lg"
-              min="0"
-              placeholder="0"
-            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setForm(f => ({ ...f, inStock: Math.max(0, parseInt(f.inStock) || 0 - 1) }))}
+                className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              >
+                <Minus size={16} />
+              </button>
+              <input
+                type="number"
+                value={form.inStock || ''}
+                onChange={e => setForm({ ...form, inStock: e.target.value })}
+                className="flex-1 p-3 border border-gray-300 rounded-lg text-center"
+                min="0"
+                placeholder="0"
+              />
+              <button
+                type="button"
+                onClick={() => setForm(f => ({ ...f, inStock: (parseInt(f.inStock) || 0) + 1 }))}
+                className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Min Stock</label>

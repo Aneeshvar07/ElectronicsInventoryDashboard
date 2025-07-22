@@ -1,29 +1,14 @@
-import React, { useEffect, useState, useContext, useRef } from 'react';
+import React, { useEffect, useState, useContext, useMemo } from 'react';
 import AddFastenerForm from './addFastenersForm';
 import AddCategoryForm from './addCategoryForm';
 import EditFastenerForm from './editFastenerForm';
 import { InventoryContext } from './inventoryContext';
 import FastenersSidebar from './FastenersSidebar';
 import Logo from '../assets/Logo3.jpg';
-import ImportFasteners from './importFasteners'; // Now this is the fasteners import
-import { Eye, EyeOff, Menu as MenuIcon } from 'lucide-react';
+import ImportFasteners from './importFasteners';
+import { Eye, EyeOff, Menu as MenuIcon, Plus } from 'lucide-react';
 import Modal from './modal';
 import FastenersCategoryTree from './FastenersCategoryTree';
-
-const Navbar = ({ onMenuClick }) => (
-  <nav className="fixed top-0 left-0 w-full h-14 bg-[#D8D2C2] text-[#4A4947] shadow z-30 flex items-center px-6 justify-between font-sans" style={{fontFamily: 'Inter, system-ui, sans-serif'}}>
-    <div className="flex items-center gap-3">
-      <button className="md:hidden p-2" onClick={onMenuClick}>
-        <svg width="24" height="24" fill="none" stroke="#B17457" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
-      </button>
-      <img src={Logo} alt="Logo" className="h-13 w-45 mr-2 rounded" />
-      <span className="font-bold text-xl tracking-tight">Inventory Dashboard</span>
-    </div>
-    <div className="flex items-center gap-4 relative">
-      <div className="w-8 h-8 bg-[#B17457] rounded-full" />
-    </div>
-  </nav>
-);
 
 const columnsList = [
   { key: 'name', label: 'Name' },
@@ -45,6 +30,21 @@ const columnsList = [
   { key: 'categoryName', label: 'Category' },
 ];
 
+const Navbar = ({ onMenuClick }) => (
+  <nav className="fixed top-0 left-0 w-full h-14 bg-[#D8D2C2] text-[#4A4947] shadow z-30 flex items-center px-6 justify-between font-sans" style={{fontFamily: 'Inter, system-ui, sans-serif'}}>
+    <div className="flex items-center gap-3">
+      <button className="md:hidden p-2" onClick={onMenuClick}>
+        <svg width="24" height="24" fill="none" stroke="#B17457" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+      </button>
+      <img src={Logo} alt="Logo" className="h-13 w-45 mr-2 rounded" />
+      <span className="font-bold text-xl tracking-tight">Inventory Dashboard</span>
+    </div>
+    <div className="flex items-center gap-4 relative">
+      <div className="w-8 h-8 bg-[#B17457] rounded-full" />
+    </div>
+  </nav>
+);
+
 const FastenersDashboard = () => {
   const [fasteners, setFasteners] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -63,13 +63,60 @@ const FastenersDashboard = () => {
   const [selectedFasteners, setSelectedFasteners] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
-  const { fastenerCategories, flatFastenerCategories, addFastenerCategory, editFastenerCategory, deleteFastenerCategory } = useContext(InventoryContext);
+  const { fasteners: contextFasteners, fastenerCategories, addFastenerCategory, editFastenerCategory, deleteFastenerCategory, flatFastenerCategories } = useContext(InventoryContext);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState(null);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-  const columnsDropdownRef = useRef();
+  const columnsDropdownRef = React.useRef();
   const [editCategoryLoading, setEditCategoryLoading] = useState(false);
   const [deleteCategoryLoading, setDeleteCategoryLoading] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
+
+  // Flatten category tree for quick lookup
+  const categoryMap = useMemo(() => {
+    const map = {};
+    function traverse(categories) {
+      categories.forEach(cat => {
+        map[cat.id] = cat;
+        if (cat.children && cat.children.length) {
+          traverse(cat.children);
+        }
+      });
+    }
+    traverse(fastenerCategories);
+    return map;
+  }, [fastenerCategories]);
+
+  // Recursively collect all descendant category IDs
+  const getDescendantIds = (catId) => {
+    const ids = [];
+    function collect(id) {
+      ids.push(id);
+      const children = fastenerCategories.filter(c => c.parentId === id);
+      children.forEach(child => collect(child.id));
+    }
+    if (catId) collect(catId);
+    return ids;
+  };
+
+  // Filter fasteners by selected category and its descendants
+  const filteredFasteners = useMemo(() => {
+    if (!selectedCategoryId) return fasteners;
+    const allowedIds = getDescendantIds(selectedCategoryId);
+    return fasteners.filter(f => allowedIds.includes(f.categoryId));
+  }, [fasteners, selectedCategoryId, fastenerCategories]);
+
+  // Breadcrumb trail for selected category
+  const getBreadcrumb = (catId) => {
+    const trail = [];
+    let current = categoryMap[catId];
+    while (current) {
+      trail.unshift(current);
+      current = current.parentId ? categoryMap[current.parentId] : null;
+    }
+    return trail;
+  };
+  const breadcrumb = selectedCategoryId ? getBreadcrumb(selectedCategoryId) : [];
 
   // Close columns dropdown on outside click
   useEffect(() => {
@@ -169,35 +216,17 @@ const FastenersDashboard = () => {
   }));
 
   // Filter fasteners by selected category
-  const getAllDescendantCategoryIds = (catId, nodes = allCategories) => {
-    let ids = [];
-    for (const node of nodes) {
-      if (node.id === catId) {
-        const collect = (c) => {
-          let res = [c.id];
-          (c.children || []).forEach(child => res.push(...collect(child)));
-          return res;
-        };
-        return collect(node);
-      }
-      if (node.children && node.children.length) {
-        const found = getAllDescendantCategoryIds(catId, node.children);
-        if (found.length) return found;
-      }
-    }
-    return [];
-  };
-
   const matchesCategory = (fastenerCatId) => {
     if (!selectedCategoryId) return true;
-    const ids = getAllDescendantCategoryIds(selectedCategoryId);
+    const ids = getDescendantIds(selectedCategoryId);
     return ids.includes(fastenerCatId);
   };
 
   // Search and filter
-  const filteredFasteners = fastenersWithCategory.filter(f => {
+  const filteredFastenersForTable = fastenersWithCategory.filter(f => {
     if (!matchesCategory(f.categoryId)) return false;
     if (!searchTerm) return true;
+    // Search all visible columns
     return columnsList.some(col => {
       if (!visibleColumns[col.key]) return false;
       const value = f[col.key];
@@ -206,8 +235,8 @@ const FastenersDashboard = () => {
   });
 
   // Pagination
-  const totalPages = Math.ceil(filteredFasteners.length / itemsPerPage);
-  const paginatedFasteners = filteredFasteners.slice(
+  const totalPages = Math.ceil(filteredFastenersForTable.length / itemsPerPage);
+  const paginatedFasteners = filteredFastenersForTable.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -332,6 +361,15 @@ const FastenersDashboard = () => {
                 <h1 className="text-2xl md:text-3xl font-bold text-[#4A4947] mb-1">Fasteners Inventory</h1>
                 <p className="text-[#B17457] text-sm md:text-base font-medium">Manage your fasteners efficiently</p>
               </div>
+              {/* Breadcrumb */}
+              <div className="text-sm text-[#B17457] mb-4">
+                {breadcrumb.map((cat, idx) => (
+                  <span key={cat.id}>
+                    {idx > 0 && ' / '}
+                    {cat.name}
+                  </span>
+                ))}
+              </div>
               {/* Controls and Table (matching parts dashboard) */}
               <div className="flex flex-wrap gap-3 md:gap-4 items-center mb-4">
                 <button
@@ -404,12 +442,6 @@ const FastenersDashboard = () => {
                   />
                 </div>
               </div>
-              {/* Showing fasteners under: */}
-              {selectedCategoryId && (
-                <div className="text-xs md:text-sm text-[#B17457] mb-2" style={{marginBottom: 8}}>
-                  Showing fasteners under: <strong>{getCategoryPath(selectedCategoryId).join(' > ')}</strong>
-                </div>
-              )}
               {/* Table and pagination (existing code) */}
               <div className="overflow-x-auto bg-[#FAF7F0] rounded-xl shadow border border-[#4A4947]" style={{marginTop: 12}}>
                 <table className="min-w-full divide-y divide-[#4A4947]" style={{fontFamily: 'Inter, system-ui, sans-serif'}}>
@@ -418,10 +450,10 @@ const FastenersDashboard = () => {
                       <th className="px-2 md:px-4 py-2 text-left">
                         <input
                           type="checkbox"
-                          checked={selectedFasteners.length === filteredFasteners.length && filteredFasteners.length > 0}
+                          checked={selectedFasteners.length === filteredFastenersForTable.length && filteredFastenersForTable.length > 0}
                           onChange={e => {
                             if (e.target.checked) {
-                              setSelectedFasteners(filteredFasteners.map(f => f.id));
+                              setSelectedFasteners(filteredFastenersForTable.map(f => f.id));
                             } else {
                               setSelectedFasteners([]);
                             }
@@ -508,10 +540,39 @@ const FastenersDashboard = () => {
           </div>
         </main>
       </div>
+      {/* Add FAB at bottom right of the screen with sidebar color theme */}
+      <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end">
+        {fabOpen && (
+          <div className="mb-2 w-48 bg-[#181C23] border border-[#23272F] rounded shadow-lg">
+            <button
+              className="w-full px-4 py-2 text-left transition-colors group hover:bg-[#23272F] hover:text-[#B17457] text-[#F3F4F6]"
+              onClick={() => { setShowAddForm(true); setFabOpen(false); }}
+            >
+              + Add New Fastener
+            </button>
+            <button
+              className="w-full px-4 py-2 text-left transition-colors group hover:bg-[#23272F] hover:text-[#B17457] text-[#F3F4F6]"
+              onClick={() => { setShowAddCategoryForm(true); setFabOpen(false); }}
+            >
+              + Add Category
+            </button>
+          </div>
+        )}
+        <div className="flex items-center mb-2">
+          <span className="bg-[#B17457] text-white px-3 py-1 rounded-l-full shadow text-sm">Add here</span>
+          <button
+            className="bg-[#181C23] group hover:bg-[#23272F] text-[#F3F4F6] rounded-full p-4 shadow-lg transition-colors ml-2 flex items-center justify-center"
+            onClick={() => setFabOpen((open) => !open)}
+            aria-label="Add"
+          >
+            <Plus size={28} className="transition-colors text-[#F3F4F6] group-hover:text-[#B17457]" />
+          </button>
+        </div>
+      </div>
       <AddFastenerForm isOpen={showAddForm} onClose={() => {
         setShowAddForm(false);
         fetchFasteners();
-      }} />
+      }} categories={fastenersRoot ? [fastenersRoot] : []} />
       <AddCategoryForm
         isOpen={showAddCategoryForm}
         onClose={() => {
@@ -524,7 +585,7 @@ const FastenersDashboard = () => {
         isOpen={showEditForm}
         onClose={() => setShowEditForm(false)}
         fastener={editingFastener}
-        categories={fastenerCategoriesFlat}
+        categories={fastenersRoot ? [fastenersRoot] : []}
         onUpdated={fetchFasteners}
       />
       <Modal isOpen={categoryModalOpen} onClose={() => setCategoryModalOpen(false)} title="Category Management">

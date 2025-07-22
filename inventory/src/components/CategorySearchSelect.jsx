@@ -1,6 +1,7 @@
 import React, { useContext, useMemo, useState } from 'react';
 import { InventoryContext } from './inventoryContext';
 
+
 const flattenCategories = (categories, parentPath = []) => {
   let result = [];
   for (const category of categories) {
@@ -17,8 +18,9 @@ const flattenCategories = (categories, parentPath = []) => {
   return result;
 };
 
-const CategorySearchSelect = ({ selectedId, onSelect }) => {
-  const { categories } = useContext(InventoryContext);
+const CategorySearchSelect = ({ selectedId, onSelect, categories: propCategories }) => {
+  const context = useContext(InventoryContext);
+  const categories = propCategories || context.categories;
   const allCategories = useMemo(() => flattenCategories(categories), [categories]);
 
   const [query, setQuery] = useState('');

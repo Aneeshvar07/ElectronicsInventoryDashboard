@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Pencil, Trash } from 'lucide-react';
 
-const FastenersCategoryTree = ({ categories = [], selectedId, onSelect, level = 0, showActions = false, onEdit, onDelete }) => {
+const FastenersCategoryTree = ({ categories, selectedId, onSelect, level = 0, showActions = false, onEdit, onDelete }) => {
   const [expandedCategories, setExpandedCategories] = useState(new Set());
 
   const toggleExpanded = (categoryId) => {

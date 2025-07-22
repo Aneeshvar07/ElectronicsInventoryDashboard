@@ -2,9 +2,10 @@ import React, { useState, useContext } from 'react';
 import Modal from './modal';
 import CategorySearchSelect from './CategorySearchSelect';
 import { InventoryContext } from './inventoryContext';
+import { Plus, Minus } from 'lucide-react';
 
-const AddFastenerForm = ({ isOpen, onClose }) => {
-  const { categories } = useContext(InventoryContext);
+const AddFastenerForm = ({ isOpen, onClose, categories }) => {
+  const { categories: contextCategories } = useContext(InventoryContext);
   const [form, setForm] = useState({
     name: '',
     headShape: '',
@@ -139,6 +140,8 @@ const AddFastenerForm = ({ isOpen, onClose }) => {
             <CategorySearchSelect
               selectedId={form.categoryId}
               onSelect={id => setForm({ ...form, categoryId: id })}
+              categories={categories}
+              isFastener={true}
             />
           </div>
         </div>
@@ -163,14 +166,30 @@ const AddFastenerForm = ({ isOpen, onClose }) => {
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">In Stock</label>
-            <input
-              type="number"
-              value={form.inStock}
-              onChange={e => setForm({ ...form, inStock: e.target.value })}
-              className="w-full p-3 border border-gray-300 rounded-lg"
-              min="0"
-              placeholder="0"
-            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setForm(f => ({ ...f, inStock: Math.max(0, parseInt(f.inStock) || 0 - 1) }))}
+                className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              >
+                <Minus size={16} />
+              </button>
+              <input
+                type="number"
+                value={form.inStock}
+                onChange={e => setForm({ ...form, inStock: e.target.value })}
+                className="flex-1 p-3 border border-gray-300 rounded-lg text-center"
+                min="0"
+                placeholder="0"
+              />
+              <button
+                type="button"
+                onClick={() => setForm(f => ({ ...f, inStock: (parseInt(f.inStock) || 0) + 1 }))}
+                className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
