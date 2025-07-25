@@ -11,6 +11,7 @@ import axios from 'axios';
 import Logo from '../assets/Logo3.jpg';
 import ImportParts from './importParts';
 import FastenersDashboard from './fastenersDashboard';
+import { compareWithUnitAware } from './utils';
 // Navbar component (move here for access to state)
 const Navbar = ({ onMenuClick }) => (
   <nav className="fixed top-0 left-0 w-full h-14 bg-[#D8D2C2] text-[#4A4947] shadow z-30 flex items-center px-6 justify-between font-sans" style={{fontFamily: 'Inter, system-ui, sans-serif'}}>
@@ -78,8 +79,8 @@ const Dashboard = ({ type }) => {
   const [selectedParts, setSelectedParts] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
-  const [sortColumn, setSortColumn] = useState(null);
-  const [sortDirection, setSortDirection] = useState('asc');
+  const [sortBy, setSortBy] = useState(null);
+  const [sortOrder, setSortOrder] = useState('asc');
   const [actionMenuOpen, setActionMenuOpen] = useState(null); // row id or null
 
   useEffect(() => {
@@ -131,6 +132,7 @@ const Dashboard = ({ type }) => {
     inStock: true,
     minimumStock: true,
     location: true,
+    voltage: true,
     comments: true
   });
 
@@ -202,27 +204,23 @@ const Dashboard = ({ type }) => {
     return parseFloat(lower) || 0;
   }
 
-  const sortableColumns = ['name', 'partNumber', 'package', 'inStock', 'minimumStock', 'location'];
+  const handleSort = (columnKey) => {
+    if (sortBy === columnKey) {
+      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(columnKey);
+      setSortOrder('asc');
+    }
+  };
 
-  // Sorting logic
   const sortedParts = React.useMemo(() => {
-    if (!sortColumn) return filteredParts;
-    const sorted = [...filteredParts].sort((a, b) => {
-      let aVal = a[sortColumn];
-      let bVal = b[sortColumn];
-      if (["inStock", "minimumStock"].includes(sortColumn)) {
-        aVal = parseValue(aVal);
-        bVal = parseValue(bVal);
-      } else {
-        aVal = aVal ? aVal.toString().toLowerCase() : '';
-        bVal = bVal ? bVal.toString().toLowerCase() : '';
-      }
-      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
+    if (!sortBy) return filteredParts;
+    const result = [...filteredParts].sort((a, b) => {
+      const cmp = compareWithUnitAware(a, b, sortBy);
+      return sortOrder === 'asc' ? cmp : -cmp;
     });
-    return sorted;
-  }, [filteredParts, sortColumn, sortDirection]);
+    return result;
+  }, [filteredParts, sortBy, sortOrder]);
 
   const totalPages = Math.ceil(sortedParts.length / itemsPerPage);
 
@@ -439,46 +437,25 @@ const Dashboard = ({ type }) => {
                       {visibleColumns.name && (
                         <th
                           className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947] cursor-pointer select-none"
-                          onClick={() => {
-                            if (sortColumn === 'name') {
-                              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-                            } else {
-                              setSortColumn('name');
-                              setSortDirection('asc');
-                            }
-                          }}
+                          onClick={() => handleSort('name')}
                         >
-                          Name{sortColumn === 'name' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                          Name{sortBy === 'name' ? (sortOrder === 'asc' ? ' ▲' : ' ▼') : ''}
                         </th>
                       )}
                       {visibleColumns.partNumber && (
                         <th
                           className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947] cursor-pointer select-none"
-                          onClick={() => {
-                            if (sortColumn === 'partNumber') {
-                              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-                            } else {
-                              setSortColumn('partNumber');
-                              setSortDirection('asc');
-                            }
-                          }}
+                          onClick={() => handleSort('partNumber')}
                         >
-                          Part Number{sortColumn === 'partNumber' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                          Part Number{sortBy === 'partNumber' ? (sortOrder === 'asc' ? ' ▲' : ' ▼') : ''}
                         </th>
                       )}
                       {visibleColumns.package && (
                         <th
                           className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947] cursor-pointer select-none"
-                          onClick={() => {
-                            if (sortColumn === 'package') {
-                              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-                            } else {
-                              setSortColumn('package');
-                              setSortDirection('asc');
-                            }
-                          }}
+                          onClick={() => handleSort('package')}
                         >
-                          Package{sortColumn === 'package' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                          Package{sortBy === 'package' ? (sortOrder === 'asc' ? ' ▲' : ' ▼') : ''}
                         </th>
                       )}
                       {visibleColumns.category && (
@@ -490,46 +467,33 @@ const Dashboard = ({ type }) => {
                       {visibleColumns.inStock && (
                         <th
                           className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947] cursor-pointer select-none"
-                          onClick={() => {
-                            if (sortColumn === 'inStock') {
-                              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-                            } else {
-                              setSortColumn('inStock');
-                              setSortDirection('asc');
-                            }
-                          }}
+                          onClick={() => handleSort('inStock')}
                         >
-                          In Stock{sortColumn === 'inStock' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                          In Stock{sortBy === 'inStock' ? (sortOrder === 'asc' ? ' ▲' : ' ▼') : ''}
                         </th>
                       )}
                       {visibleColumns.minimumStock && (
                         <th
                           className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947] cursor-pointer select-none"
-                          onClick={() => {
-                            if (sortColumn === 'minimumStock') {
-                              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-                            } else {
-                              setSortColumn('minimumStock');
-                              setSortDirection('asc');
-                            }
-                          }}
+                          onClick={() => handleSort('minimumStock')}
                         >
-                          Min Stock{sortColumn === 'minimumStock' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                          Min Stock{sortBy === 'minimumStock' ? (sortOrder === 'asc' ? ' ▲' : ' ▼') : ''}
                         </th>
                       )}
                       {visibleColumns.location && (
                         <th
                           className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947] cursor-pointer select-none"
-                          onClick={() => {
-                            if (sortColumn === 'location') {
-                              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-                            } else {
-                              setSortColumn('location');
-                              setSortDirection('asc');
-                            }
-                          }}
+                          onClick={() => handleSort('location')}
                         >
-                          Location{sortColumn === 'location' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                          Location{sortBy === 'location' ? (sortOrder === 'asc' ? ' ▲' : ' ▼') : ''}
+                        </th>
+                      )}
+                      {visibleColumns.voltage && (
+                        <th
+                          className="px-2 md:px-4 py-2 text-left text-xs md:text-sm font-bold text-[#4A4947] cursor-pointer select-none"
+                          onClick={() => handleSort('voltage')}
+                        >
+                          Voltage{sortBy === 'voltage' ? (sortOrder === 'asc' ? ' ▲' : ' ▼') : ''}
                         </th>
                       )}
                       {visibleColumns.comments && (
@@ -579,6 +543,9 @@ const Dashboard = ({ type }) => {
                         )}
                         {visibleColumns.location && (
                           <td className="px-2 md:px-4 py-2 text-xs md:text-sm text-[#4A4947]">{part.location}</td>
+                        )}
+                        {visibleColumns.voltage && (
+                          <td className="px-2 md:px-4 py-2 text-xs md:text-sm text-[#4A4947]">{part.voltage}</td>
                         )}
                         {visibleColumns.comments && (
                           <td className="px-2 md:px-4 py-2 text-xs md:text-sm text-[#4A4947]">{part.comments}</td>

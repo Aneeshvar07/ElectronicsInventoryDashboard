@@ -203,6 +203,7 @@ db.serialize(() => {
       inStock INTEGER,
       minimumStock INTEGER,
       location TEXT,
+      volts TEXT,
       createdAt TEXT,
       comments TEXT
     )
@@ -245,6 +246,9 @@ db.serialize(() => {
     }
     if (!colNames.includes('createdAt')) {
       db.run('ALTER TABLE parts ADD COLUMN createdAt TEXT');
+    }
+    if (!colNames.includes('volts')) {
+      db.run('ALTER TABLE parts ADD COLUMN volts TEXT');
     }
   });
   db.all("PRAGMA table_info(fasteners)", (err, columns) => {
@@ -298,12 +302,12 @@ app.post('/api/parts', (req, res) => {
   const p = req.body;
   const createdAt = p.createdAt || new Date().toISOString();
   const stmt = db.prepare(`
-    INSERT INTO parts (name, partNumber, package, categoryId, description, inStock, minimumStock, location, createdAt, comments)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO parts (name, partNumber, package, categoryId, description, inStock, minimumStock, location, volts, createdAt, comments)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   stmt.run([
     p.name, p.partNumber, p.package, p.categoryId, p.description,
-    p.inStock, p.minimumStock, p.location, createdAt, p.comments
+    p.inStock, p.minimumStock, p.location, p.volts, createdAt, p.comments
   ], function (err) {
     if (err) return res.status(500).json({ error: err.message });
     console.log(`[ADD PART] id=${this.lastID} name=${p.name}`);
@@ -315,11 +319,11 @@ app.put('/api/parts/:id', (req, res) => {
   const id = req.params.id;
   const p = req.body;
   const stmt = db.prepare(`
-    UPDATE parts SET name=?, partNumber=?, package=?, categoryId=?, description=?, inStock=?, minimumStock=?, location=?, comments=? WHERE id=?
+    UPDATE parts SET name=?, partNumber=?, package=?, categoryId=?, description=?, inStock=?, minimumStock=?, location=?, volts=?, comments=? WHERE id=?
   `);
   stmt.run([
     p.name, p.partNumber, p.package, p.categoryId, p.description,
-    p.inStock, p.minimumStock, p.location, p.comments, id
+    p.inStock, p.minimumStock, p.location, p.volts, p.comments, id
   ], function (err) {
     if (err) return res.status(500).json({ error: err.message });
     console.log(`[EDIT PART] id=${id} name=${p.name}`);
